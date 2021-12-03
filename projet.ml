@@ -9,7 +9,7 @@
    Variables :
    V ::= a | b | c | d (variable)
    B ::= 0 | 1 (booléen)
-   E ::= N | B (expression)        
+   E ::= V | B (expression)        
 
    Instructions :
    I ::=
@@ -49,7 +49,7 @@ type i =
    Variables :
    V ::= a | b | c | d (variable)
    B ::= 0 | 1 (booléen)
-   E ::= N | B (expression)        
+   E ::= V | B (expression)        
 
    Instructions :
    I ::=
@@ -72,8 +72,7 @@ type i =
 
    Instructions :
 
-   S ::= IL | epsilon (axiome)
-   L ::= ;S | epsilon (liste d'instructions)
+   S ::= I;S | epsilon (axiome)
    I ::= 
    | V:=E 
    | i(E){S}{S} 
@@ -85,15 +84,68 @@ type i =
 (* Nouveau type i *)
 
 type s =
-  | Axiome of i * l
+  | Axiome of i * s
   | EpsilonS
-and
-  l =
-  | ListeInstructions of s
-  | EpsilonL
 and
   i =
   | Affectation of v * e
+  | While of e * s
+  | If of e * s * s
+  | EpsilonI;;
+
+(* 1.2.1 *)
+
+(*
+[[expr]]_s == true                               [[expr]]_s == false
+---------------------------------                ---------------------------------
+s, (if expr then P else Q) -> s,(P)              s, (if expr then P else Q) -> s,(Q)
+ *)
+
+(* 1.2.2 *)
+
+(* Nouvelle grammaire où on ajoute la négation
+
+   Variables :
+   V ::= a | b | c | d (variable)
+   B ::= 0 | 1 (booléen)
+   E ::= V | B | N (expression)        
+
+   Instructions :
+
+   S ::= I;I
+   I ::= 
+   | V:=E 
+   | i(E){S}{S} 
+   | w(E){S}    
+   | epsilon
+   
+ *)
+
+type v =
+  | A
+  | B
+  | C
+  | D;;
+
+type b =
+  | Zero
+  | Un;;
+
+type n =
+  | N;;
+
+type e =
+  | Variable of v
+  | Booleen of b;;
+| Neg of n;;
+
+type s =
+  | Axiome of i * s
+  | EpsilonS
+and
+  i =
+  | Assign of v * e
+  | Seq of s * s
   | While of e * s
   | If of e * s * s
   | EpsilonI;;
