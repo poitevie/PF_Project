@@ -214,19 +214,19 @@ let (++>) (a : 'resa ranalist) (b : 'resa -> 'resb ranalist) : 'resb ranalist =
 
 (* 2.1.1 *)
 
-let rec (parser_v : ranalist) = fun l -> l |>
+let rec (parser_v : v ranalist) = fun l -> l |>
                                        (terminal 'a' -+> epsilon_res(A))
                                        +| (terminal 'b' -+> epsilon_res(B))
                                        +| (terminal 'c' -+> epsilon_res(C))
                                        +| (terminal 'd' -+> epsilon_res(D));;
 
-let rec (parser_b : ranalist) = fun l -> l |>
+let rec (parser_b : b ranalist) = fun l -> l |>
                                        (terminal '0' -+> epsilon_res(Zero))
                                        +| (terminal '1' -+> epsilon_res(Un));;
 
-let rec (parser_e : ranalist) = fun l -> l |>
+let rec (parser_e : e ranalist) = fun l -> l |>
                                            (parser_v ++> fun a -> epsilon_res(Variable a))
                                            +| (parser_b ++> fun b -> epsilon_res(Booleen b));;
 
 let test s = parser_e(string_to_list s);;
-let _ = test "a";;
+let _ = test "ab0d111";;
