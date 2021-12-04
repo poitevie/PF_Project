@@ -270,5 +270,5 @@ let _ = test2 "  a:=1;b: =1;c:=1 ;w(a)
 
 (* 2.1.3 *)
 
-(* Nous avons modifié la fonction terminal pour accepter les espaces, les indentations et les retours à la ligne *)
+(* Nous avons modifié la fonction terminal pour accepter les espaces, les indentations et les retours à la ligne *) 
 
