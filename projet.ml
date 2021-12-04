@@ -112,7 +112,7 @@ s, (if expr then P else Q) -> s,(P)              s, (if expr then P else Q) -> s
 
    Instructions :
 
-   S ::= I;I
+   S ::= I;S
    I ::= 
    | V:=E 
    | i(E){S}{S} 
@@ -167,8 +167,11 @@ exception Echec
 
 (* terminal constant *)
 let terminal c : analist = fun l -> match l with
-  | x :: l when x = c -> l
-  | _ -> raise Echec
+                                    | x :: l when x = c -> l
+                                    | x :: l when x = ' ' -> terminal c l
+                                    | x :: l when x = '\t' -> terminal c l
+                                    | x :: l when x = '\n' -> terminal c l
+                                    | _ -> raise Echec
 
 (* terminal conditionnel *)
 let terminal_cond (p : 'term -> bool) : analist = function
@@ -214,19 +217,58 @@ let (++>) (a : 'resa ranalist) (b : 'resa -> 'resb ranalist) : 'resb ranalist =
 
 (* 2.1.1 *)
 
-let rec (parser_v : ranalist) = fun l -> l |>
+type ast =
+  | PA of v*e
+  | PS of ast*ast
+  | PI of e*ast*ast
+  | PW of e*ast
+  | PEpsilon
+;;
+
+let rec (parser_v : v ranalist) = fun l -> l |>
                                        (terminal 'a' -+> epsilon_res(A))
                                        +| (terminal 'b' -+> epsilon_res(B))
                                        +| (terminal 'c' -+> epsilon_res(C))
                                        +| (terminal 'd' -+> epsilon_res(D));;
 
-let rec (parser_b : ranalist) = fun l -> l |>
+let rec (parser_b : b ranalist) = fun l -> l |>
                                        (terminal '0' -+> epsilon_res(Zero))
                                        +| (terminal '1' -+> epsilon_res(Un));;
 
-let rec (parser_e : ranalist) = fun l -> l |>
+let rec (parser_e : e ranalist) = fun l -> l |>
                                            (parser_v ++> fun a -> epsilon_res(Variable a))
                                            +| (parser_b ++> fun b -> epsilon_res(Booleen b));;
 
-let test s = parser_e(string_to_list s);;
-let _ = test "a";;
+let rec (parser_a : ast ranalist) = fun l -> l |>
+                                               (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (PA ((a, b))));;
+
+let rec (parser_s : ast ranalist) = fun l -> l |>
+                                               (parser_i ++> fun a -> epsilon_res (a))
+                                               +| (epsilon_res (PEpsilon))
+
+and parser_i : ast ranalist = fun l -> l |>
+                                               (parser_a ++> fun a -> terminal ';' -+> parser_s ++> fun b -> epsilon_res (PS ((a, b))))
+                                               +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PS ((PI (a, b, c)), d)))
+                                               +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (PS ((PW (a, b)), c)));;
+
+(* 2.1.2 *)
+
+(* Test : fonctionne pour la première action *)
+let test s = parser_s (string_to_list s);;
+
+let _ = test "a:=1;w(a){a:=0}";;
+
+(* Récupération uniquement de l'AST et réécriture sous la forme d'un seq*)
+                                         
+let crea_ast (s:string) : (ast) = let (ast, cl) = parser_s (string_to_list s) in PS (ast, PEpsilon) ;;
+
+let test2 s = crea_ast s;;
+
+let _ = test2 "a:=1;w(a){a:=0;}";;
+let _ = test2 "  a:=1;b: =1;c:=1 ;w(a)
+{i (c){c:=0;a:=b;}{b :=0 ;c: =a;}}";;
+
+(* 2.1.3 *)
+
+(* Nous avons modifié la fonction terminal pour accepter les espaces, les indentations et les retours à la ligne *)
+
