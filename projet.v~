@@ -1,0 +1,114 @@
+(* POITEVIN Eve & REYGNER Etienne *)
+
+Require Import Bool Arith List.
+Import List.ListNotations.
+
+(** ** Syntaxe des expressions arithétiques *)
+
+Inductive aexp :=
+| Aco : nat -> aexp (* constantes *)
+| Ava : nat -> aexp (* variables *)
+| Apl : aexp -> aexp -> aexp
+| Amu : aexp -> aexp -> aexp
+| Amo : aexp -> aexp -> aexp
+.
+
+(** ** Syntaxe des expressions booléennes *)
+
+Inductive bexp :=
+| Btrue : bexp
+| Bfalse : bexp
+| Bnot : bexp -> bexp
+| Band : bexp -> bexp -> bexp
+| Bor : bexp -> bexp -> bexp
+| Beq : bexp -> bexp -> bexp (* test égalité de bexp *)
+| Beqnat : aexp -> aexp -> bexp (* test égalité d'aexp *)
+.
+
+(** ** Syntaxe du langage impératif WHILE *)
+
+Inductive winstr :=
+| Skip   : winstr
+| Assign : nat -> aexp -> winstr
+| Seq    : winstr -> winstr -> winstr
+| If     : bexp -> winstr -> winstr -> winstr
+| While  : bexp -> winstr -> winstr
+.
+
+(** ** Quelques listes/états pour faire des tests *)
+(** S1 est un état dans lequel la variable '0' vaut 1 et la variable '1' vaut 2
+    et toutes les autres '0' (valeur par défaut)                             *)
+(** Une variable (Ava i) étant représentée par un entier naturel i,
+    sa valeur dans l'état est la valeur de la ieme position de la liste *)
+
+Definition state := list nat.
+
+Definition S1 := [1; 2].
+Definition S2 := [0; 3].
+Definition S3 := [0; 7; 5; 41].
+
+(** * Sémantique *)
+(** On reprend les sémantiques fonctionnelles
+    des expressions artihmétiques et booléennes      *)
+
+(** La fonction get x s rend la valeur de x dans s. *)
+(** Elle rend 0 par défaut, par exemple si la variable
+    n'est pas définie/initialisée    *)
+
+Fixpoint get (x:nat) (s:state) : nat :=
+match x,s with
+| 0   , v::_      => v
+| S x1, _::l1 => get x1 l1
+| _   , _         => 0
+end.
+
+(** La mise à jour d'une variable v par un nouvel entier n dans un état s
+    s'écrit 'update s v n'
+    Cette fonction n'échoue jamais et écrit la valeur à sa place même
+    si elle n'est pas encore définie dans l'état *)
+
+Fixpoint update (s:state) (v:nat) (n:nat): state :=
+  match v,s with
+  | 0   , a :: l1 => n :: l1
+  | 0   , nil     => n :: nil
+  | S v1, a :: l1 => a :: (update l1 v1 n)
+  | S v1, nil     => 0 :: (update nil v1 n)
+  end.
+
+(** ** Sémantique fonctionnelle de aexp*)
+Fixpoint evalA (a: aexp) (s: state) : nat :=
+  match a with
+  | Aco n => n
+  | Ava x => get x s
+  | Apl a1 a2 =>  evalA a1 s + evalA a2 s
+  | Amu a1 a2 =>  evalA a1 s * evalA a2 s
+  | Amo a1 a2 =>  evalA a1 s - evalA a2 s
+  end.
+
+(** ** Sémantique fonctionnelle de Baexp*)
+
+Definition eqboolb b1 b2 : bool :=
+  match b1, b2  with
+  | true , true  => true
+  | false, false => true
+  | _    , _     => false
+  end.
+
+Fixpoint eqnatb n1 n2 : bool :=
+  match n1, n2 with
+  | O    , O     => true
+  | S n1', S n2' => eqnatb n1' n2'
+  | _    , _     => false
+  end.
+
+Fixpoint evalB (b : bexp) (s : state) : bool :=
+  match b with
+  | Btrue => true
+  | Bfalse => false
+  | Bnot b => negb (evalB b s)
+  | Band e1 e2 => (evalB e1 s) && (evalB e2 s)
+  | Bor e1 e2 => (evalB e1 s) || (evalB e2 s)
+  | Beq e1 e2 => eqboolb (evalB e1 s) (evalB e2 s)
+  | Beqnat n1 n2 => eqnatb (evalA n1 s) (evalA n2 s)
+  end.
+
