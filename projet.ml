@@ -2,6 +2,8 @@
 
 (* 1 - Préliminaires théoriques *)
 
+(* 1.1 - Définition et analyse d’un langage de programmation simple *)
+
 (* 1.1.1 *)
 
 (* Grammaire
@@ -93,6 +95,8 @@ and
   | If of e * s * s
   | EpsilonI;;
 
+(* 1.2 - Sémantique Opérationnelle Structurée (SOS) *)
+
 (* 1.2.1 *)
 
 (*
@@ -136,8 +140,8 @@ type n =
 
 type e =
   | Variable of v
-  | Booleen of b
-  | Neg of n;;
+  | Booleen of b;;
+(*| Neg of n*)
 
 type s =
   | Axiome of i * s
@@ -214,6 +218,7 @@ let (++>) (a : 'resa ranalist) (b : 'resa -> 'resb ranalist) : 'resb ranalist =
   fun l -> let (x, l) = a l in b x l
 ;;
 
+(* 2.1 - Implémentation de l'interpréteur *)
 
 (* 2.1.1 *)
 
@@ -244,11 +249,11 @@ let rec (parser_a : ast ranalist) = fun l -> l |>
 
 let rec (parser_s : ast ranalist) = fun l -> l |>
                                                (parser_i ++> fun a -> epsilon_res (a))
-                                               +| (epsilon_res (PEpsilon))
+                                               +| (epsilon_res (PEpsilon)) 
 
 and parser_i : ast ranalist = fun l -> l |>
-                                               (parser_a ++> fun a -> terminal ';' -+> parser_s ++> fun b -> epsilon_res (PS ((a, b))))
-                                               +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PS ((PI (a, b, c)), d)))
+                                         (parser_a ++> fun a -> terminal ';' -+> parser_s ++> fun b -> epsilon_res (PS ((a, b))))
+                                         +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PS ((PI (a, b, c)), d)))
                                                +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (PS ((PW (a, b)), c)));;
 
 (* 2.1.2 *)
@@ -272,3 +277,109 @@ let _ = test2 "  a:=1;b: =1;c:=1 ;w(a)
 
 (* Nous avons modifié la fonction terminal pour accepter les espaces, les indentations et les retours à la ligne *) 
 
+(* 2.2 Mécanique d'état et interpréteur *)
+
+(* 2.2.1 *)
+
+type state =
+  | Current of state * char * int
+  | End;;
+
+(* Initialisation de l'état *)
+
+let rec init (s:state) = match s with
+  | End -> End
+  | Current (s', v, x) -> Current (init s', v, 0);;
+
+(* Lire la valeur d'une variable *)
+
+let rec read (s:state) (c:char) : int = match s with
+  | End -> raise Echec
+  | Current (s', v, x) -> if v = c then x else read s' v;;
+
+(* Modifier la valeur d'une variable *)
+
+let rec assign (s:state) (c:char) (i:int) : state = match s with
+  | End -> Current (End, c, i)
+  | Current (s', v, x) -> if v = c then Current (s', v, i) else Current (assign s' c i, v, x);;
+
+(* Exécuter une instruction d’affectation (affecter la valeur d'une variable ou une valeur directement *)
+
+let assignInstr (s:state) (v:v) (e:e) : state =
+  let c = (match v with
+           | A -> 'a'
+           | B -> 'b'
+           | C -> 'c'
+           | D -> 'd')
+  in let x = (match e with
+    | Variable v -> (match v with
+                    | A -> read s 'a'
+                    | B -> read s 'b'
+                    | C -> read s 'c'
+                    | D -> read s 'd')
+    | Booleen b -> (match b with
+                    | Zero -> 0
+                    | Un -> 1))
+  in assign s c x;;
+       
+(* 2.2.2 *)
+
+(* Traduit depuis SOS_1 *)
+
+type config =
+  | Inter of ast * state
+  | Final of state;;
+
+let conditionBool (s:state) (e:e) : bool = match e with
+  | Variable v -> (match v with
+                    | A -> (read s 'a')
+                    | B -> (read s 'b')
+                    | C -> (read s 'c')
+                    | D -> (read s 'd')) = 1
+  | Booleen b -> (match b with
+                    | Zero -> 0
+                    | Un -> 1) = 1;;
+
+(* Traduit depuis SOS_1 *)
+
+let rec faire_un_pas c : config = match c with
+  | Final s -> Final s
+  | Inter (a, s) -> (match a with
+                    | PEpsilon -> Final s
+                    | PA (v, x) -> Final (assignInstr s v x)
+                    | PS (a1, a2) -> (match faire_un_pas (Inter (a1, s)) with
+                                      | Final s1 -> Inter (a2, s1)
+                                      | Inter (a1', s1) -> Inter (PS (a1', a2), s1))
+                    | PI (x, a1, a2) -> if (conditionBool s x) then Inter (a1, s) else Inter (a2, s)
+                    | PW (x, a1) -> if (conditionBool s x) then Inter (PS(a1, a), s) else Final s);;
+
+(* Tests *)
+
+let ast2 = test2 "w(a){a:=0;}";;
+
+let start = Inter (ast2, Current(End, 'a', 1));;
+let pas = faire_un_pas start;;
+let pas = faire_un_pas pas;;
+let pas = faire_un_pas pas;;
+let pas = faire_un_pas pas;;
+let pas = faire_un_pas pas;;
+let pas = faire_un_pas pas;;
+
+(* 2.2.3 *)
+
+let rec boucleExecution c : state = match c with
+  | Inter (a, s) -> (match a with
+                    | PEpsilon -> s
+                    | _ -> boucleExecution (faire_un_pas (Inter (a, s))))
+  | Final s -> s;;
+
+(* executer est le cas général du test du dessus *)
+
+let executer (str:string) : state = 
+  let ast = test2 str in
+  let start = Inter (ast, Current(Current(Current(Current(End, 'd', 0), 'c', 0), 'b', 0), 'a', 0)) in
+  boucleExecution start;;
+
+(* Test *)
+
+let exec = executer "a:=1;b:=1;i(a){d:=1;}{c:=1;}";;
