@@ -242,17 +242,15 @@ let rec (parser_e : e ranalist) = fun l -> l |>
                                            +| (parser_b ++> fun b -> epsilon_res(Booleen b))
                                            +| (parser_n ++> fun c -> epsilon_res(Neg c));;
 
-let rec (parser_a : ast ranalist) = fun l -> l |>
-                                               (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (PA ((a, b))));;
-
 let rec (parser_s : ast ranalist) = fun l -> l |>
-                                               (parser_i ++> fun a -> epsilon_res (a))
-                                               +| (epsilon_res (PEpsilon)) 
+                                               (parser_i ++> fun a -> parser_s ++> fun b -> epsilon_res (PS (a, b)))
+                                               +| (terminal ';' -+> parser_s)
+                                               +| (epsilon_res (PEpsilon))
 
 and parser_i : ast ranalist = fun l -> l |>
-                                         (parser_a ++> fun a -> terminal ';' -+> parser_s ++> fun b -> epsilon_res (PS ((a, b))))
-                                         +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PS ((PI (a, b, c)), d)))
-                                               +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (PS ((PW (a, b)), c)));;
+                                         (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (PA ((a, b))))
+                                         +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PI (a, b, c)))
+                                               +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (PW (a, b)));;
 
 (* 2.1.2 *)
 
@@ -267,9 +265,9 @@ let crea_ast (s:string) : (ast) = let (ast, cl) = parser_s (string_to_list s) in
 
 let test2 s = crea_ast s;;
 
-let _ = test2 "a:=1;w(a){a:=0;}";;
+let _ = test2 "a:=1;w(a){a:=0}";;
 let _ = test2 "  a:=1;b: =1;c:=1 ;w(a)
-{i (c){c:=0;a:=b;}{b :=0 ;c: =a;}}";;
+{i (c){c:=0;a:=b}{b :=0 ;c: =a}}";;
 
 (* 2.1.3 *)
 
@@ -338,12 +336,16 @@ let rec faire_un_pas c : config = match c with
                     | PS (a1, a2) -> (match faire_un_pas (Inter (a1, s)) with
                                       | Final s1 -> Inter (a2, s1)
                                       | Inter (a1', s1) -> Inter (PS (a1', a2), s1))
-                    | PI (x, a1, a2) -> if (conditionBool s x) then Inter (a1, s) else Inter (a2, s)
-                    | PW (x, a1) -> if (conditionBool s x) then Inter (PS(a1, a), s) else Final s);;
+                    | PI (x, a1, a2) -> if (conditionBool s x)
+                                        then Inter (a1, s)
+                                        else Inter (a2, s)
+                    | PW (x, a1) -> if (conditionBool s x)
+                                    then Inter (PS(a1, a), s)
+                                    else Final s);;
 
 (* Tests *)
 
-let ast2 = test2 "w(a){a:=0;}";;
+let ast2 = test2 "w(a){a:=0}";;
 
 let start = Inter (ast2, Current(End, 'a', 1));;
 let pas = faire_un_pas start;;
@@ -370,5 +372,5 @@ let executer (str:string) : state =
 
 (* Tests *)
 
-let exec = executer "a:=1;b:=1;i(a){d:=1;}{c:=1;}";;
-let exec = executer "a:=1;b:=1;i(a){a:=#;}{c:=1;}";;
+let exec = executer "a:=1;b:=1;i(a){d:=1}{c:=1}";;
+let exec = executer "a:=1;b:=1;i(a){a:=#}{c:=1}";;
