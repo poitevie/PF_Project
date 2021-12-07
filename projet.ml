@@ -23,15 +23,9 @@
      
  *)
 
-type v =
-  | A
-  | B
-  | C
-  | D;;
+type v = A | B | C | D;;
 
-type b =
-  | Zero
-  | Un;;
+type b = Zero | Un;;
 
 type e =
   | Variable of v
@@ -125,23 +119,17 @@ s, (if expr then P else Q) -> s,(P)              s, (if expr then P else Q) -> s
    
  *)
 
-type v =
-  | A
-  | B
-  | C
-  | D;;
+type v = A | B | C | D;;
 
-type b =
-  | Zero
-  | Un;;
+type b = Zero | Un;;
 
 type n =
   | N;;
 
 type e =
   | Variable of v
-  | Booleen of b;;
-(*| Neg of n*)
+  | Booleen of b
+  | Neg of n;;
 
 type s =
   | Axiome of i * s
@@ -170,7 +158,7 @@ type 'res ranalist = char list -> 'res * char list
 exception Echec
 
 (* terminal constant *)
-let terminal c : analist = fun l -> match l with
+let rec terminal c : analist = fun l -> match l with
                                     | x :: l when x = c -> l
                                     | x :: l when x = ' ' -> terminal c l
                                     | x :: l when x = '\t' -> terminal c l
@@ -218,6 +206,13 @@ let (++>) (a : 'resa ranalist) (b : 'resa -> 'resb ranalist) : 'resb ranalist =
   fun l -> let (x, l) = a l in b x l
 ;;
 
+let charOfVariable (v:v): char =
+  match v with
+  |A -> 'a'
+  |B -> 'b'
+  |C -> 'c'
+  |D -> 'd';;
+
 (* 2.1 - Implémentation de l'interpréteur *)
 
 (* 2.1.1 *)
@@ -239,10 +234,13 @@ let rec (parser_v : v ranalist) = fun l -> l |>
 let rec (parser_b : b ranalist) = fun l -> l |>
                                        (terminal '0' -+> epsilon_res(Zero))
                                        +| (terminal '1' -+> epsilon_res(Un));;
+let rec (parser_n : n ranalist) = fun l -> l |>
+                                             (terminal '#' -+> epsilon_res(N));;
 
 let rec (parser_e : e ranalist) = fun l -> l |>
                                            (parser_v ++> fun a -> epsilon_res(Variable a))
-                                           +| (parser_b ++> fun b -> epsilon_res(Booleen b));;
+                                           +| (parser_b ++> fun b -> epsilon_res(Booleen b))
+                                           +| (parser_n ++> fun c -> epsilon_res(Neg c));;
 
 let rec (parser_a : ast ranalist) = fun l -> l |>
                                                (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (PA ((a, b))));;
@@ -306,20 +304,13 @@ let rec assign (s:state) (c:char) (i:int) : state = match s with
 (* Exécuter une instruction d’affectation (affecter la valeur d'une variable ou une valeur directement *)
 
 let assignInstr (s:state) (v:v) (e:e) : state =
-  let c = (match v with
-           | A -> 'a'
-           | B -> 'b'
-           | C -> 'c'
-           | D -> 'd')
+  let c = (charOfVariable v)
   in let x = (match e with
-    | Variable v -> (match v with
-                    | A -> read s 'a'
-                    | B -> read s 'b'
-                    | C -> read s 'c'
-                    | D -> read s 'd')
+    | Variable v -> (read s (charOfVariable v))
     | Booleen b -> (match b with
                     | Zero -> 0
-                    | Un -> 1))
+                    | Un -> 1)
+    | Neg n -> (if (read s c) = 0 then 1 else 0)) 
   in assign s c x;;
        
 (* 2.2.2 *)
@@ -330,15 +321,12 @@ type config =
   | Inter of ast * state
   | Final of state;;
 
-let conditionBool (s:state) (e:e) : bool = match e with
-  | Variable v -> (match v with
-                    | A -> (read s 'a')
-                    | B -> (read s 'b')
-                    | C -> (read s 'c')
-                    | D -> (read s 'd')) = 1
+let conditionBool (s:state) (e:e) : bool = (match e with
+  | Variable v -> (read s (charOfVariable v)) = 1
   | Booleen b -> (match b with
-                    | Zero -> 0
-                    | Un -> 1) = 1;;
+                    | Zero -> false
+                    | Un -> true)
+  | Neg n -> raise Echec);;
 
 (* Traduit depuis SOS_1 *)
 
@@ -380,6 +368,7 @@ let executer (str:string) : state =
   let start = Inter (ast, Current(Current(Current(Current(End, 'd', 0), 'c', 0), 'b', 0), 'a', 0)) in
   boucleExecution start;;
 
-(* Test *)
+(* Tests *)
 
 let exec = executer "a:=1;b:=1;i(a){d:=1;}{c:=1;}";;
+let exec = executer "a:=1;b:=1;i(a){a:=#;}{c:=1;}";;
