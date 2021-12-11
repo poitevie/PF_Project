@@ -533,6 +533,8 @@ Admitted.
 
 (* SOS_corps_carre 
 
+
+
  *)
 
 Theorem SOS_corps_carre n : SOS (Inter corps_carre (invar_cc n)) (Final (invar_cc (S n))).
@@ -668,3 +670,44 @@ Fixpoint f_SOS_1 (i : winstr) (s : state) : config :=
                  end
   | While b i => Inter (If b (Seq i (While b i)) Skip) s
   end.
+
+(** ** Utilisation de f_SOS_1 pour éviter les eapply SOS_again *)
+
+(** PC = pt de contrôle *)
+Definition PC0 := Pcarre_2.
+Eval cbn in (f_SOS_1 PC0 [0;0;1]).
+
+(** Il faut un peu désosser le code pour y retrouver les points de contrôle *)
+
+Definition PC2 := Seq corps_carre PC0.
+Definition PC1 := If (Bnot (Beqnat Ir (Aco 2))) PC2 Skip.
+
+(** On vérifie la progression *)
+Fact fa1 : f_SOS_1 PC0 [0;0;1] = Inter PC1 [0;0;1]. reflexivity. Qed.
+Eval cbn in (f_SOS_1 PC1 [0;0;1]).
+
+Eval cbn in (f_SOS_1 PC2 [0;0;1]).
+Definition PC3 := Seq (Seq incrX incrY) PC0.
+
+Eval cbn in (f_SOS_1 PC3 [1;0;1]).
+Definition PC4 := Seq incrY PC0.
+
+Eval cbn in (f_SOS_1 PC4 [1;1;1]).
+
+(* Utilisation de la fonction dans la première question du 2.4.2 *)
+
+Lemma SOS_Pcarre_2_1er_tour_V1 : SOS (Inter Pcarre_2 [0;0;1]) (Inter Pcarre_2 [1; 1; 3]).
+Proof.
+  change Pcarre_2 with PC0.
+  apply SOS_again with (Inter PC1 [0;0;1]).
+  { apply SOS_While. }
+  apply SOS_again with (Inter PC2 [0;0;1]).
+  { apply SOS_If_true. cbn. reflexivity. }
+  apply SOS_again with (Inter PC3 [1;0;1]).
+  { cbv. apply SOS_Seqi. apply SOS_Seqf. apply SOS_Assign. }
+  apply SOS_again with (Inter PC4 [1;1;1]).
+  { cbv. apply SOS_Seqi. apply SOS_Seqf. apply SOS_Assign.}
+  apply SOS_again with (Inter PC0 [1;1;3]).
+  { cbv. apply SOS_Seqf. apply SOS_Assign.}
+  apply SOS_stop.
+Qed.
