@@ -514,3 +514,138 @@ Proof.
     + apply SOS_Pcarre_2_fini.
 Qed.
 
+(* 2.4.3 *)
+
+(** Généralisation à Pcarre *)
+
+(** On a besoin de deux lemmes arithmétiques, démontrables avec la tactique ring. *)
+Lemma Sn_2 n : S n + S n = S (S (n + n)).
+Proof. ring. Qed.
+
+Lemma Sn_carre n : S n * S n = S (n + n + n * n).
+Proof. ring. Qed.
+
+Definition invar_cc n := [n; n*n; S (n+n)].
+
+Lemma eqnatb_refl : forall n, eqnatb n n = true.
+Proof.
+Admitted.
+
+(* SOS_corps_carre 
+
+ *)
+
+Theorem SOS_corps_carre n : SOS (Inter corps_carre (invar_cc n)) (Final (invar_cc (S n))).
+Proof.
+  eapply SOS_again.
+  - cbv [corps_carre].
+    + apply SOS_Seqf. apply SOS_Assign.
+  - eapply SOS_again.
+    + apply SOS_Seqf. apply SOS_Assign.
+    + eapply SOS_again.
+      apply SOS_Assign. cbn.
+      cbv [invar_cc].
+      rewrite Sn_carre. rewrite Sn_2.
+      apply SOS_stop.
+Qed.
+
+(* SOS_corps_carre_inter
+
+ *)
+
+Lemma SOS_corps_carre_inter n i :
+  SOS (Inter (Seq corps_carre i) (invar_cc n)) (Inter i (invar_cc (S n))).
+Proof.
+  apply SOS_seq.
+  apply SOS_corps_carre.
+Qed.
+
+
+(* SOS_Pcarre_tour
+
+ *)
+
+Lemma SOS_Pcarre_tour :
+  forall n i, eqnatb i n = false ->
+  SOS (Inter (Pcarre n) (invar_cc i)) (Inter (Pcarre n) (invar_cc (S i))).
+Proof.
+  intros n i.
+  intro eq.
+  eapply SOS_again.
+  cbv [Pcarre].
+  apply SOS_While.
+  eapply SOS_again.
+  apply SOS_If_true.
+  cbn.
+  rewrite eq.
+  cbn. reflexivity.
+  apply SOS_corps_carre_inter.
+Qed.
+
+(* SOS_Pcarre_n_fini
+
+ *)
+
+Theorem SOS_Pcarre_n_fini :
+  forall n, SOS (Inter (Pcarre n) (invar_cc n)) (Final (invar_cc n)).
+Proof.
+  intro n.
+  eapply SOS_again.
+  - cbv [Pcarre].
+    apply SOS_While.
+  - eapply SOS_again.
+    apply SOS_If_false.
+    cbn. rewrite eqnatb_refl. cbn. reflexivity.
+    eapply SOS_again. apply SOS_Skip.
+    apply SOS_stop.
+Qed.
+
+(* SOS_Pcarre_2_fin_V2
+
+ *)
+
+Theorem SOS_Pcarre_2_fin_V2 : SOS (Inter Pcarre_2 [0;0;1]) (Final [2;4;5]).
+Proof.
+  eapply SOS_trans.
+  { apply SOS_Pcarre_tour. reflexivity. }
+  eapply SOS_trans.
+  { apply SOS_Pcarre_tour. reflexivity. }
+  eapply SOS_trans.
+  { apply SOS_Pcarre_n_fini. }
+  apply SOS_stop.
+Qed.
+
+(* SOS_Pcarre_inf_tour
+
+*)
+
+Lemma SOS_Pcarre_inf_tour :
+  forall i,
+  SOS (Inter Pcarre_inf (invar_cc i)) (Inter Pcarre_inf (invar_cc (S i))).
+Proof.
+  intro i.
+  eapply SOS_again.
+  cbv [Pcarre_inf].
+  apply SOS_While.
+  eapply SOS_again.
+  apply SOS_If_true.
+  cbn. reflexivity.
+  apply SOS_corps_carre_inter.
+Qed.
+  
+(* SOS_Pcarre_inf_n
+
+*)
+
+Theorem SOS_Pcarre_inf_n :
+  forall i,
+  SOS (Inter Pcarre_inf [0; 0; 1]) (Inter Pcarre_inf (invar_cc i)).
+Proof.
+  intro i.
+  induction i as [ | ].
+  - cbv [invar_cc]. cbv [Pcarre_inf]. cbn.
+    apply SOS_stop.
+  - eapply SOS_trans.
+    apply IHi.
+    eapply SOS_Pcarre_inf_tour.
+Qed.
