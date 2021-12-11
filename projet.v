@@ -649,3 +649,22 @@ Proof.
     apply IHi.
     eapply SOS_Pcarre_inf_tour.
 Qed.
+
+(* 2.4.4 *)
+
+(* Version fonctionnelle de SOS_1 *)
+
+Fixpoint f_SOS_1 (i : winstr) (s : state) : config :=
+  match i with
+  | Skip => Final s
+  | Assign x a => Final (update s x (evalA a s))
+  | Seq i1 i2 => match f_SOS_1 i1 s with
+                 | Final s1 => Inter i2 s1
+                 | Inter i1' s1 => Inter (Seq i1' i2) s1
+                 end
+  | If b i1 i2 => match evalB b s with
+                 | true => Inter i1 s
+                 | false => Inter i2 s
+                 end
+  | While b i => Inter (If b (Seq i (While b i)) Skip) s
+  end.
