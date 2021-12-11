@@ -533,7 +533,7 @@ Admitted.
 
 (* SOS_corps_carre 
 
-
+On veut montrer que lorsqu'on fait un tour de boucle avec comme état initial [n; n*n; S (n+n)], on arrivera à l'état final [S(n); S(n*n); S(n+n)] = [n+1; n*n + S(n+n); S(n+n) + 2]
 
  *)
 
@@ -553,6 +553,8 @@ Qed.
 
 (* SOS_corps_carre_inter
 
+On veut montrer que lorsque l'on fait un tour de boucle à une configuration intermédiaire corps_carre; i, SOS sera appliqué seulement à corps_carre et nous arriverons dans une configuration intermédiaire où il nous restera i à exécuter.
+
  *)
 
 Lemma SOS_corps_carre_inter n i :
@@ -564,6 +566,10 @@ Qed.
 
 
 (* SOS_Pcarre_tour
+
+Pour tout i et n deux entiers,
+Si i<>n, alors en appliquant SOS à la configuration intermédiaire ayant comme état invar_cc i, on arrivera à une configuration intermédiaire ayant comme état invar_cc (S i).
+On cherche à atteindre l'état i+1 à partir de l'état i pour tout i<>n.
 
  *)
 
@@ -586,6 +592,9 @@ Qed.
 
 (* SOS_Pcarre_n_fini
 
+On veut montrer qu'en effectuant n tours de boucle depuis une configuration intermédiaire depuis l'état invar_cc n, on arrivera à une configuration finale d'état invar_cc n.
+Nous cherchons ici à atteindre un état final et donc à terminer l'éxécution.
+
  *)
 
 Theorem SOS_Pcarre_n_fini :
@@ -604,6 +613,9 @@ Qed.
 
 (* SOS_Pcarre_2_fin_V2
 
+On veut montrer qu'en partant d'une configuration d'état initial [0;0;1] et en effectuant plusieurs tours de boucle while, on arrivera à une configuration finale d'état [2;4;5].
+Ici nous utilisons la transitivité (SOS_trans) afin d'atteindre les différents états puis nous faisons un tour de boucle (SOS_Pcarre_tour) jusqu'à atteindre l'état final.
+
  *)
 
 Theorem SOS_Pcarre_2_fin_V2 : SOS (Inter Pcarre_2 [0;0;1]) (Final [2;4;5]).
@@ -618,6 +630,10 @@ Proof.
 Qed.
 
 (* SOS_Pcarre_inf_tour
+
+Pour tout entier i, 
+On veut montrer qu'en bouclant à l'infini la configuration intermédiaire ayant comme état invar_cc i, on arrivera à une configuration intermédiaire ayant comme état invar_cc (S i).
+On cherche à atteindre l'état i+1 à partir de l'état i.
 
 *)
 
@@ -636,6 +652,8 @@ Proof.
 Qed.
   
 (* SOS_Pcarre_inf_n
+
+On veut montrer qu'en effectuant un nombre indéfini de tours de boucle depuis une configuration ayant pour état initial [0;0;1], on arrivera à une configuration intermédiaire d'état invar_cc i.
 
 *)
 
