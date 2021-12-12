@@ -269,8 +269,8 @@ Proof.
                    | (* SN_Seq *) i1 i2 s1 s2 s' sn1 hrec_sn1 sn2 hrec_sn2
                    | (* SN_If_true *) cond i1 i2 s s' e sn hrec_sn
                    | (* SN_If_false *) cond i1 i2 s s' e sn hrec_sn
-                   | (* SN_Ihile_false *) cond i1 s hrec_sn
-                   | (* SN_Ihile_true *)  cond i1 s hrec_sn
+                   | (* SN_Ihile_false *) cond i1 s e
+                   | (* SN_Ihile_true *)  cond i s s1 s2 e sn1 hrec_sn1 sn2 hrec_sn2
                    ].
   - apply SN'_Skip.
   - apply SN'_Assign.
@@ -283,14 +283,14 @@ Proof.
   - apply SN'_If_false.
     + apply e.
     + apply hrec_sn.
-  - apply SN'_While_false. apply hrec_sn.
+  - apply SN'_While_false. apply e.
   - (** Le sous-but le plus intéressant, où les formulations diffèrent entre
         SN' et SN *)
     apply SN'_While_true.
-    + apply H.
+    + apply e.
     + eapply SN'_Seq.
-      -- apply IHsn1.
-      -- apply IHsn2.
+      -- apply hrec_sn1.
+      -- apply hrec_sn2.
 Qed.
 
 (* 2.3.3 *)
