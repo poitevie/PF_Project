@@ -217,12 +217,14 @@ let charOfVariable (v:v): char =
 
 (* 2.1.1 *)
 
+(* Arbre représentant le programme (décomposé en intructions) *)
+
 type ast =
-  | PA of v*e
-  | PS of ast*ast
-  | PI of e*ast*ast
-  | PW of e*ast
-  | PEpsilon
+  | IAssign of v*e
+  | ISeq of ast*ast
+  | IIf of e*ast*ast
+  | IWhile of e*ast
+  | IEnd
 ;;
 
 let rec (parser_v : v ranalist) = fun l -> l |>
@@ -243,31 +245,34 @@ let rec (parser_e : e ranalist) = fun l -> l |>
                                            +| (parser_n ++> fun c -> epsilon_res(Neg c));;
 
 let rec (parser_s : ast ranalist) = fun l -> l |>
-                                               (parser_i ++> fun a -> parser_s ++> fun b -> epsilon_res (PS (a, b)))
+                                               (parser_i ++> fun a -> parser_s ++> fun b -> epsilon_res (ISeq (a, b)))
                                                +| (terminal ';' -+> parser_s)
-                                               +| (epsilon_res (PEpsilon))
+                                               +| (epsilon_res (IEnd))
 
 and parser_i : ast ranalist = fun l -> l |>
-                                         (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (PA ((a, b))))
-                                         +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (PI (a, b, c)))
-                                               +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (PW (a, b)));;
+                                         (parser_v ++> fun a -> terminal ':' --> terminal '=' -+> parser_e ++> fun b -> epsilon_res (IAssign ((a, b))))
+                                         +| (terminal 'i' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' --> terminal '{' -+> parser_s ++> fun c -> terminal '}' -+> parser_s ++> fun d -> epsilon_res (IIf (a, b, c)))
+                                               +| (terminal 'w' --> terminal '(' -+> parser_e ++> fun a -> terminal ')' --> terminal '{' -+> parser_s ++> fun b -> terminal '}' -+> parser_s ++> fun c -> epsilon_res (IWhile (a, b)));;
 
 (* 2.1.2 *)
 
-(* Test : fonctionne pour la première action *)
 let test s = parser_s (string_to_list s);;
 
 let _ = test "a:=1;w(a){a:=0}";;
 
-(* Récupération uniquement de l'AST et réécriture sous la forme d'un seq*)
+(* Test : fonctionne pour la première action *)
+
+(* Création de l'arbre *)
                                          
-let crea_ast (s:string) : (ast) = let (ast, cl) = parser_s (string_to_list s) in PS (ast, PEpsilon) ;;
+let crea_ast (s:string) : (ast) = let (ast, cl) = parser_s (string_to_list s) in ISeq (ast, IEnd) ;;
 
 let test2 s = crea_ast s;;
 
 let _ = test2 "a:=1;w(a){a:=0}";;
-let _ = test2 "  a:=1;b: =1;c:=1 ;w(a)
-{i (c){c:=0;a:=b}{b :=0 ;c: =a}}";;
+let _ = test2 "  a:=1;b: =1;c:=1 ;w(a){
+i (c){c:=0;a:=b}{b :=0 ;c: =a}}";;
+
+(* Tests OK *)
 
 (* 2.1.3 *)
 
@@ -331,16 +336,16 @@ let conditionBool (s:state) (e:e) : bool = (match e with
 let rec faire_un_pas c : config = match c with
   | Final s -> Final s
   | Inter (a, s) -> (match a with
-                    | PEpsilon -> Final s
-                    | PA (v, x) -> Final (assignInstr s v x)
-                    | PS (a1, a2) -> (match faire_un_pas (Inter (a1, s)) with
+                    | IEnd -> Final s
+                    | IAssign (v, x) -> Final (assignInstr s v x)
+                    | ISeq (a1, a2) -> (match faire_un_pas (Inter (a1, s)) with
                                       | Final s1 -> Inter (a2, s1)
-                                      | Inter (a1', s1) -> Inter (PS (a1', a2), s1))
-                    | PI (x, a1, a2) -> if (conditionBool s x)
+                                      | Inter (a1', s1) -> Inter (ISeq (a1', a2), s1))
+                    | IIf (x, a1, a2) -> if (conditionBool s x)
                                         then Inter (a1, s)
                                         else Inter (a2, s)
-                    | PW (x, a1) -> if (conditionBool s x)
-                                    then Inter (PS(a1, a), s)
+                    | IWhile (x, a1) -> if (conditionBool s x)
+                                    then Inter (ISeq (a1, a), s)
                                     else Final s);;
 
 (* Tests *)
@@ -359,7 +364,7 @@ let pas = faire_un_pas pas;;
 
 let rec boucleExecution c : state = match c with
   | Inter (a, s) -> (match a with
-                    | PEpsilon -> s
+                    | IEnd -> s
                     | _ -> boucleExecution (faire_un_pas (Inter (a, s))))
   | Final s -> s;;
 
@@ -373,4 +378,9 @@ let executer (str:string) : state =
 (* Tests *)
 
 let exec = executer "a:=1;b:=1;i(a){d:=1}{c:=1}";;
+
+assert (exec = (Current (Current (Current (Current (End, 'd', 1), 'c', 0), 'b', 1), 'a', 1)));;
+
 let exec = executer "a:=1;b:=1;i(a){a:=#}{c:=1}";;
+
+assert (exec = (Current (Current (Current (Current (End, 'd', 0), 'c', 0), 'b', 1), 'a', 0)));;
